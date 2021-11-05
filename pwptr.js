@@ -6,6 +6,16 @@ const fs = require('fs'),
   readline = require('readline'),
   {getProfileDirByMode} = require('./puppeteer-helper')
 
+let config = {
+    taskDir: `${__dirname}/../tasks`,
+
+  }
+
+let configFile = `${__dirname}/../.pwptr.json`
+if (fs.existsSync(configFile)) {
+  config = {...config, require(configFile)
+}
+
 const errorTxt = txt => chalk.bold.white.bgRed(txt),
   headerTxt = txt => chalk.yellow(txt),
   cmdTxt = txt => chalk.green(txt),
