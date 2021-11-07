@@ -7,13 +7,13 @@ const fs = require('fs'),
   {getProfileDirByMode} = require('./puppeteer-helper')
 
 let config = {
-    taskDir: `${__dirname}/../tasks`,
-
+    taskDir: `${__dirname}/../../tasks`,
   }
 
-let configFile = `${__dirname}/../.pwptr.json`
+let configFile = `${__dirname}/../../.pwptr.json`
 if (fs.existsSync(configFile)) {
-  config = {...config, require(configFile)
+  let userConfig = require(configFile)
+  config = {...config, ...userConfig}
 }
 
 const errorTxt = txt => chalk.bold.white.bgRed(txt),
@@ -45,9 +45,13 @@ const delFile = async (file, confirmMsg = `Are you sure you want to delete ${fil
 }
 
 const parseTaskFiles = function () {
-  fs.readdirSync(`${__dirname}/tasks/`).forEach(file => {
+  if (!fs.existsSync(config.taskDir)) {
+    console.error(errorTxt(`Task dir "${config.taskDir}" does not exist.`))
+    process.exit(1)
+  }
+  fs.readdirSync(config.taskDir).forEach(file => {
     if (/\.js$/.test(file)) {
-      modExports = require(`${__dirname}/tasks/${file}`)
+      modExports = require(`${__dirname}/../../${config.taskDir}/${file}`)
       for (const [key, value] of Object.entries(modExports)) {
         let n = value.namespace
         // if the task already exists or its namespace matches an existing task, error out
