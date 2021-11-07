@@ -2,7 +2,7 @@
   "name": "pwptr",
   "version": "0.0.1",
   "description": "Puppeteer with profiles task runner",
-  "main": "index.js",
+  "main": "puppeteer-helper.js",
   "scripts": {
     "test": "my-test-command.js"
   },
