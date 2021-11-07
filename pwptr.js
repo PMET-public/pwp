@@ -182,7 +182,8 @@ yargs.command(
     let tasks = normalizeTaskSet(argv.tasks)
     for (let t of tasks) {
       console.log(`Running ${cmdTxt(t)} ...`)
-      let p = await exportedTasks[t].run({extMode: 'dev', devtools: argv.devtools})
+      //let p = await exportedTasks[t].run({extMode: 'dev', devtools: argv.devtools})
+      let p = await exportedTasks[t].run()
       if (argv.screenshot) {
         p.screenshot({fullPage: true})
       }
