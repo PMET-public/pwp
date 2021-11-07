@@ -64,7 +64,7 @@ const browserWithMLExt = async function(url, opts) {
   return await puppeteer.launch(launchOpts)
 }
 
-const loggingTaskPage = async function(taskName, url, opts = {extMode: 'dev'}) {
+const loggingTaskPage = async function(taskName, url, opts = {extMode: null}) {
   let logTaskArgs = [taskName, url, opts.extMode || opts.extMode === null ? opts : {...opts, extMode: 'dev'}], // account for case where opts were passed but extMode not set
     br = await browserWithMLExt(url, opts),
     targets = await br.targets(),

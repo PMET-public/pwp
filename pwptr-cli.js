@@ -15,6 +15,9 @@ if (fs.existsSync(configFile)) {
   let userConfig = require(configFile)
   config = {...config, ...userConfig}
 }
+if (typeof config.taskDirOutput === "undefined") {
+  config.taskDirOutput = config.taskDir + '/output'
+}
 
 const errorTxt = txt => chalk.bold.white.bgRed(txt),
   headerTxt = txt => chalk.yellow(txt),
@@ -183,7 +186,7 @@ yargs.command(
     for (let t of tasks) {
       console.log(`Running ${cmdTxt(t)} ...`)
       //let p = await exportedTasks[t].run({extMode: 'dev', devtools: argv.devtools})
-      let p = await exportedTasks[t].run()
+      let p = await exportedTasks[t].run({config: config, argv: argv})
       if (argv.screenshot) {
         p.screenshot({fullPage: true})
       }
