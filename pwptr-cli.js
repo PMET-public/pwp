@@ -12,6 +12,7 @@ const fs = require('fs'),
   yargs = require('yargs'),
   chalk = require('chalk'),
   readline = require('readline'),
+  {clearCookies} = require('pwptr')
   configDir = path.resolve(`${__dirname}/../..`)
   configFile = `${configDir}/.pwptr.json`,
   defaultProfileOpts = {
@@ -43,27 +44,27 @@ const resolveConfigPath = function (p) {
 config = fs.existsSync(configFile) ? require(configFile) : {}
 
 // if a tasks dir was not provided, define default
-if (typeof config.taskDir === 'undefined') {
-  config.taskDir = `${configDir}/tasks`
+if (typeof config.tasksDir === 'undefined') {
+  config.tasksDir = `${configDir}/tasks`
 }
 
-config.taskDir = resolveConfigPath(config.taskDir)
-if (!fs.existsSync(config.taskDir)) {
-  console.error(errorTxt(`Resolved tasks directory "${config.taskDir}" does not exist.`))
+config.tasksDir = resolveConfigPath(config.tasksDir)
+if (!fs.existsSync(config.tasksDir)) {
+  console.error(errorTxt(`Resolved tasks directory "${config.tasksDir}" does not exist.`))
   process.exit(1)
 }
 
 // if a tasks output dir was not provided, define default
-if (typeof config.taskDirOutput === 'undefined') {
-  config.taskDirOutput = config.taskDir + '/output'
+if (typeof config.tasksOutputDir === 'undefined') {
+  config.tasksOutputDir = config.tasksDir + '/output'
 }
 
-config.taskDirOutput = resolveConfigPath(config.taskDirOutput)
-if (!fs.existsSync(config.taskDirOutput)) {
+config.tasksOutputDir = resolveConfigPath(config.tasksOutputDir)
+if (!fs.existsSync(config.tasksOutputDir)) {
   try {
-    fs.mkdirSync(config.taskDirOutput)
+    fs.mkdirSync(config.tasksOutputDir)
   } catch (e) {
-    console.error(errorTxt(`Could not create resolved tasks output directory "${config.taskDir}".`))
+    console.error(errorTxt(`Could not create resolved tasks output directory "${config.tasksDir}".`))
     process.exit(1)
   }
 }
@@ -100,35 +101,39 @@ It should be an array of paths of Chrome extensions to load.`))
   })
 }
 
-const delFile = async (file, confirmMsg = `Are you sure you want to delete ${file}?`) => {
-  const rl = readline.createInterface({input: process.stdin, output: process.stdout})
-  const it = rl[Symbol.asyncIterator]()
-  console.log(confirmMsg + '\n(y/n): ')
-  const answer = await it.next()
-  if (answer.value === 'y') {
+// if profile dir was not provided, define default
+if (typeof config.profilesDir === 'undefined') {
+  config.profilesDir = config.tasksDir + '../.chrome-profiles'
+}
+
+// if profile dir does not exist, create it
+config.profilesDir = resolveConfigPath(config.profilesDir)
+if (!fs.existsSync(config.profilesDir)) {
+  try {
+    fs.mkdirSync(config.profilesDir)
+  } catch (e) {
+    console.error(errorTxt(`Could not create directory for Chrome profiles "${config.profilesDir}".`))
+    process.exit(1)
+  }
+}
+
+// after validating extensions of profiles, create chrome profile dirs if they do not exist
+for (const [key, value] of Object.entries(config.profiles)) {
+  let profileDir = `${config.profilesDir}/${key}`
+  if (!fs.existsSync(profileDir)) {
     try {
-      fs.unlinkSync(file)
-      console.log('Successfully removed ${file}')
-    } catch (error) {
-      if (error.code === 'ENOENT') { // do not exit with error for this case
-        console.log('Does not exist or already removed.')
-      } else {
-        console.error(errorTxt(`Failed to remove: ${file}\n${error}`))
-        process.exit(1)
-      }
+      fs.mkdirSync(profileDir)
+    } catch (e) {
+      console.error(errorTxt(`Could not Chrome profile directory "${profileDir}".`))
+      process.exit(1)
     }
   }
-  rl.close()
 }
 
 const parseTaskFiles = function () {
-  if (!fs.existsSync(config.taskDir)) {
-    console.error(errorTxt(`Task dir "${config.taskDir}" does not exist.`))
-    process.exit(1)
-  }
-  fs.readdirSync(config.taskDir).forEach(file => {
+  fs.readdirSync(config.tasksDir).forEach(file => {
     if (/\.js$/.test(file)) {
-      modExports = require(`${__dirname}/../../${config.taskDir}/${file}`)
+      modExports = require(`${config.tasksDir}/${file}`)
       for (const [key, value] of Object.entries(modExports)) {
         let n = value.namespace
         // if the task already exists or its namespace matches an existing task, error out
@@ -136,12 +141,18 @@ const parseTaskFiles = function () {
           console.error(errorTxt(`Exported task or task group name "${key}" already exists. Each must be globally unique.`))
           process.exit(1)
         } else {
-          exportedTasksNamespaces[n] = n
+          if (n) {
+            exportedTasksNamespaces[n] = n
+          }
           exportedTasks[key] = value
         }
       }
     }
   })
+  if (!Object.keys(exportedTasks).length) {
+    console.error(errorTxt(`No exported tasks found in "${config.tasksDir}/*.js" file(s).`))
+    process.exit(1)
+  }
 }
 
 const normalizeTaskSet = function(tasks) {
@@ -212,6 +223,26 @@ yargs.command(
       process.exit(1)
     }
     if (argv.profiles) {
+      const rl = readline.createInterface({input: process.stdin, output: process.stdout})
+      const it = rl[Symbol.asyncIterator]()
+      console.log(confirmMsg + '\n(y/n): ')
+      const answer = await it.next()
+      rl.close()
+      if (answer.value === 'y') {
+        try {
+          clearCookiesByProfile(p)
+          fs.unlinkSync(file)
+          console.log('Successfully removed ${file}')
+        } catch (error) {
+          if (error.code === 'ENOENT') { // do not exit with error for this case
+            console.log('Does not exist or already removed.')
+          } else {
+            console.error(errorTxt(`Failed to remove: ${file}\n${error}`))
+            process.exit(1)
+          }
+        }
+      }
+
       await delFile(getProfileDirByMode('dev') + '/Default/Cookies', 'Delete cookies for ${}?')
     }
   }
@@ -234,11 +265,11 @@ yargs.command(
       type: 'boolean',
       default: false
     })
-    yargs.option('no-close',{
-      description: 'Keep the browser open after each task.',
+    yargs.option('autoclose',{
+      description: 'Close the browser after each task.',
       global: false,
       type: 'boolean',
-      default: false
+      default: true
     })
     yargs.positional('tasks', {
       type: 'string',
