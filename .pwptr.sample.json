@@ -1,7 +1,8 @@
 {
   "_comment": "Relative or absolute paths accepted. Use {HOME} in path to substitue for user's home dir",
-  "taskDir": "./alt/tasks",
-  "taskDirOutput": "./alt/tasks/output",
+  "tasksDir": "./alt/tasks",
+  "tasksOutputDir": "./alt/tasks/output",
+  "profilesDir": "../.chrome-profiles",
   "profiles": {
     "default": {
       "exts": [],
