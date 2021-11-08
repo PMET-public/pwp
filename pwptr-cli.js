@@ -1,30 +1,104 @@
 #!/usr/bin/env node
+
+// File used to setup the pwptr cli for a project
+// - looks for a .pwptr.json
+// - resolves config between user and defaults
+// - validates config
+// - interacts with user for certain commands
+
 /* eslint-disable one-var */
 const fs = require('fs'),
+  path = require('path'),
   yargs = require('yargs'),
   chalk = require('chalk'),
   readline = require('readline'),
-  {getProfileDirByMode} = require('./puppeteer-helper')
-
-let config = {
-    taskDir: `${__dirname}/../../tasks`,
-  }
-
-let configFile = `${__dirname}/../../.pwptr.json`
-if (fs.existsSync(configFile)) {
-  let userConfig = require(configFile)
-  config = {...config, ...userConfig}
-}
-if (typeof config.taskDirOutput === "undefined") {
-  config.taskDirOutput = config.taskDir + '/output'
-}
-
-const errorTxt = txt => chalk.bold.white.bgRed(txt),
+  configDir = path.resolve(`${__dirname}/../..`)
+  configFile = `${configDir}/.pwptr.json`,
+  defaultProfileOpts = {
+    'exts': [],
+    'runByDefault': false,
+    'devtools': false,
+    'screenshot': false,
+    'autoclose': true
+  },
+  errorTxt = txt => chalk.bold.white.bgRed(txt),
   headerTxt = txt => chalk.yellow(txt),
   cmdTxt = txt => chalk.green(txt),
   exportedTasks = [],
   // simple hash of namespaces for easy iterating over w/o examining all exported tasks
   exportedTasksNamespaces = []
+
+const resolveConfigPath = function (p) {
+  p = p.replace('{HOME}', process.env.HOME)
+  if (!/^(\.|\/)/.test(p)) { // relative path not prefixed with "./"
+    p = './' + p
+  }
+  if (/^\.{1,2}\//.test(p)) { // relative path
+    p = path.resolve(`${configDir}/${p}`)
+  }
+  return p
+}
+
+// if user supplied config file exists, use it
+config = fs.existsSync(configFile) ? require(configFile) : {}
+
+// if a tasks dir was not provided, define default
+if (typeof config.taskDir === 'undefined') {
+  config.taskDir = `${configDir}/tasks`
+}
+
+config.taskDir = resolveConfigPath(config.taskDir)
+if (!fs.existsSync(config.taskDir)) {
+  console.error(errorTxt(`Resolved tasks directory "${config.taskDir}" does not exist.`))
+  process.exit(1)
+}
+
+// if a tasks output dir was not provided, define default
+if (typeof config.taskDirOutput === 'undefined') {
+  config.taskDirOutput = config.taskDir + '/output'
+}
+
+config.taskDirOutput = resolveConfigPath(config.taskDirOutput)
+if (!fs.existsSync(config.taskDirOutput)) {
+  try {
+    fs.mkdirSync(config.taskDirOutput)
+  } catch (e) {
+    console.error(errorTxt(`Could not create resolved tasks output directory "${config.taskDir}".`))
+    process.exit(1)
+  }
+}
+
+// if profiles were not provided, define default
+if (typeof config.profiles === 'undefined') {
+  config.profiles = {
+    // if not provided default profile should run by default
+    'default': {...defaultProfileOpts, 'runByDefault': true}
+  }
+} else {
+  // provide default values for any omitted by user
+  for (const [key, value] of Object.entries(config.profiles)) {
+    config.profiles[key] = {...defaultProfileOpts, ...value}
+  }
+}
+
+// ensure provided extensions are valid
+for (const [key, value] of Object.entries(config.profiles)) {
+  let paths = config.profiles[key].exts
+  if (typeof paths.forEach !== 'function') { // test if array by checking for "forEach" method
+    console.error(errorTxt(`${configFile}'s profile "${key}" contains an invalid "exts" key.
+It should be an array of paths of Chrome extensions to load.`))
+    process.exit(1)
+  }
+  paths.forEach((p, i) => {
+    p = resolveConfigPath(p)
+    if (!fs.existsSync(p)) {
+      console.error(errorTxt(`${configFile}'s profile "${key}" contains "exts" with invalid resolved path:\n${p}.`))
+      process.exit(1)
+    } else {
+      config.profiles[key].exts[i] = p
+    }
+  })
+}
 
 const delFile = async (file, confirmMsg = `Are you sure you want to delete ${file}?`) => {
   const rl = readline.createInterface({input: process.stdin, output: process.stdout})
@@ -101,23 +175,6 @@ const normalizeTaskSet = function(tasks) {
   return taskSet
 }
 
-const addExtModeOpts = function (yargs) {
-  const defaults = {
-    global: false,
-    type: 'boolean',
-    default: false
-  }
-  yargs.option('dev', { ...defaults,
-    description: 'Applies to profile with dev extension',
-  })
-  yargs.option('prod', { ...defaults,
-    description: 'Applies to profile with prod extension',
-  })
-  yargs.option('none', { ...defaults,
-    description: 'Applies to profile with no extension',
-  })
-}
-
 yargs.command(
   ['list'],
   'Show list of tasks',
@@ -134,19 +191,28 @@ yargs.command(
     }
   }
 )
+
+const addProfilesOpt = function (yargs) {
+  yargs.option('p', {
+    alias: 'profiles',
+    description: 'list of profiles',
+    choices: Object.keys(config.profiles)
+  })
+}
+
 yargs.command(
   ['clear-cookies'],
   'Remove cookies for the specified extension modes',
-  addExtModeOpts,
+  addProfilesOpt,
   async argv => {
-    if (argv.dev) {
-      await delFile(getProfileDirByMode('dev') + '/Default/Cookies', 'Delete cookies for browser with dev extension?')
+    if (!argv.profiles) {
+      yargs.showHelp()
+      // invoked by command handler so must explicitly invoke console
+      console.error(errorTxt(`The "${argv._[0]}" command requires 1 or more profiles.`))
+      process.exit(1)
     }
-    if (argv.prod) {
-      await delFile(getProfileDirByMode('prod') + '/Default/Cookies', 'Delete cookies for browser with prod extension?')
-    }
-    if (argv.none) {
-      await delFile(getProfileDirByMode('null') + '/Default/Cookies', 'Delete cookies for bare (no extension) browser?')
+    if (argv.profiles) {
+      await delFile(getProfileDirByMode('dev') + '/Default/Cookies', 'Delete cookies for ${}?')
     }
   }
 )
@@ -155,7 +221,7 @@ yargs.command(
   ['run [tasks...]'],
   'Run a list of tasks with the specified options.',
   yargs => {
-    addExtModeOpts(yargs)
+    addProfilesOpt(yargs)
     yargs.option('screenshot',{
       description: 'Screenshot the page after each task is run.',
       global: false,
