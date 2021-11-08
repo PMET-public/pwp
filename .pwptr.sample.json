@@ -1,0 +1,26 @@
+{
+  "_comment": "Relative or absolute paths accepted. Use {HOME} in path to substitue for user's home dir",
+  "taskDir": "./alt/tasks",
+  "taskDirOutput": "./alt/tasks/output",
+  "profiles": {
+    "default": {
+      "exts": [],
+      "runByDefault": false,
+      "devtools": false,
+      "screenshot": false,
+      "autoclose": true
+    },
+    "dev": {
+      "exts": [
+        "./alt/dist/chrome-extension"
+      ],
+      "runByDefault": false
+    },
+    "prod": {
+      "exts": [
+        "{HOME}/Library/Application Support/Google/Chrome/Default/Extensions/somelongidhere/1.2.3_0"
+      ],
+      "runByDefault": false
+    }
+  }
+}
