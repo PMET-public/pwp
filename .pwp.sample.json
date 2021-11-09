@@ -1,27 +1,25 @@
 {
-  "_comment": "Relative or absolute paths accepted. Use {HOME} in path to substitue for user's home dir",
-  "tasksDir": "./alt/tasks",
-  "tasksOutputDir": "./alt/tasks/output",
-  "profilesDir": "../.chrome-profiles",
+  "_comment": "Relative or absolute paths accepted. Use \"~\" to substitue for your HOME dir and make tasks more shareable.",
+  "tasksDir": "./tasks",
+  "tasksOutputDir": "./tasks/output",
+  "profilesDir": "./.chrome-profiles",
   "profiles": {
-    "default": {
+    "no-extensions": {
       "exts": [],
-      "runByDefault": false,
+      "runByDefault": true,
       "devtools": false,
       "screenshot": false,
       "autoclose": true
     },
-    "dev": {
+    "ublock": {
+      "_comment": "A profile running with popular extension uBlock Origin ver 1.38.6_49",
       "exts": [
-        "./alt/dist/chrome-extension"
+        "{HOME}/Library/Application Support/Google/Chrome/Default/Extensions/cjpalhdlnbpafiamejdnhcphjbkeiagm/1.38.6_49"
       ],
-      "runByDefault": false
-    },
-    "prod": {
-      "exts": [
-        "{HOME}/Library/Application Support/Google/Chrome/Default/Extensions/onibnnoghllldiecboelbpcaeggfiohl/5.4.6_0"
-      ],
-      "runByDefault": false
+      "runByDefault": true,
+      "devtools": false,
+      "screenshot": false,
+      "autoclose": true
     }
   }
 }
