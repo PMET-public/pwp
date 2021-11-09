@@ -19,9 +19,54 @@ if (!fs.existsSync(outputDir)) {
   fs.mkdirSync(outputDir)
 }
 
-const clearCookies = function (profiles) {
-
+const parseTaskFiles = function () {
+  const tasks = [],
+    groups = []
+  fs.readdirSync(config.tasksDir).forEach(file => {
+    if (/\.js$/.test(file)) {
+      taskFileExports = require(`${config.tasksDir}/${file}`)
+      for (const [key, value] of Object.entries(taskFileExports)) {
+        let n = value.group
+        // if the task already exists or its group matches an existing task, error out
+        if (tasks[key]) {
+          console.error(errorTxt(`An exported task with name "${key}" already exists. Task names must be unique across all task files.`))
+          process.exit(1)
+        } else if (tasks[n]) {
+          console.error(errorTxt(`A task group with name "${key}" already exists. A task can not have the same name as an existing task group.`))
+          process.exit(1)
+        } else {
+          if (n) {
+            groups[n] = n
+          }
+          tasks[key] = value
+        }
+      }
+    }
+  })
+  if (!Object.keys(tasks).length) {
+    console.error(errorTxt(`No exported tasks found in "${config.tasksDir}/*.js" file(s).`))
+    process.exit(1)
+  }
+  return {exportedTasks: tasks, exportedTaskGroups: groups}
 }
+exports.parseTaskFiles = parseTaskFiles
+
+const clearCookiesByProfile = function (profiles) {
+  try {
+    clearCookiesByProfile(p)
+    fs.unlinkSync(file)
+    console.log('Successfully removed ${file}')
+  } catch (error) {
+    if (error.code === 'ENOENT') { // do not exit with error for this case
+      console.log('Does not exist or already removed.')
+    } else {
+      console.error(errorTxt(`Failed to remove: ${file}\n${error}`))
+      process.exit(1)
+    }
+  }
+//      await delFile(getProfileDirByMode('dev') + '/Default/Cookies', 'Delete cookies for ${}?')
+}
+exports.clearCookiesByProfile = clearCookiesByProfile
 
 const browserWithMLExt = async function(url, opts) {
   numBrowsers++
@@ -94,5 +139,15 @@ const logTask = function (taskName, url, opts, eventName, msg) {
   msg = msg.replace(/(^200 data:[^;]+;base64,.{50}).*/, '$1') // truncate inlined binary files
   logStreams[path].write(`${msg}\n`)
 }
+
+const pwpRunner = async function (tasksToRun, profilesToRun, resolvedConfig) {
+  profilesToRun.forEach(async p => {
+    for (let t of tasksToRun) {
+      console.log(`Running ${cmdTxt(t)} ...`)
+      await exportedTasks[t].run(config)
+    }
+  })
+}
+exports.pwpRunner = pwpRunner
 
 // await br.close()

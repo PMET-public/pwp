@@ -12,8 +12,7 @@ const fs = require('fs'),
   yargs = require('yargs'),
   chalk = require('chalk'),
   readline = require('readline'),
-  {clearCookies} = require('pwp')
-  configDir = path.resolve(`${__dirname}/../..`)
+  configDir = path.resolve(`${__dirname}/../..`),
   configFile = `${configDir}/.pwp.json`,
   defaultProfileOpts = {
     'exts': [],
@@ -25,9 +24,7 @@ const fs = require('fs'),
   errorTxt = txt => chalk.bold.white.bgRed(txt),
   headerTxt = txt => chalk.yellow(txt),
   cmdTxt = txt => chalk.green(txt),
-  exportedTasks = [],
-  // simple hash of groups for easy iterating over w/o examining all exported tasks
-  exportedTasksGroups = []
+  fadeTxt = txt => chalk.grey(txt)
 
 const resolveConfigPath = function (p) {
   p = p.replace('{HOME}', process.env.HOME)
@@ -124,46 +121,23 @@ for (const [key, value] of Object.entries(config.profiles)) {
     try {
       fs.mkdirSync(profileDir)
     } catch (e) {
-      console.error(errorTxt(`Could not Chrome profile directory "${profileDir}".`))
+      console.error(errorTxt(`Could not create Chrome profile directory "${profileDir}".`))
       process.exit(1)
     }
   }
 }
 
-const parseTaskFiles = function () {
-  fs.readdirSync(config.tasksDir).forEach(file => {
-    if (/\.js$/.test(file)) {
-      modExports = require(`${config.tasksDir}/${file}`)
-      for (const [key, value] of Object.entries(modExports)) {
-        let n = value.group
-        // if the task already exists or its group matches an existing task, error out
-        if (exportedTasks[key] || exportedTasks[n]) {
-          console.error(errorTxt(`Exported task or task group name "${key}" already exists. Each must be globally unique.`))
-          process.exit(1)
-        } else {
-          if (n) {
-            exportedTasksGroups[n] = n
-          }
-          exportedTasks[key] = value
-        }
-      }
-    }
-  })
-  if (!Object.keys(exportedTasks).length) {
-    console.error(errorTxt(`No exported tasks found in "${config.tasksDir}/*.js" file(s).`))
-    process.exit(1)
-  }
-}
+pwp = require('pwp')
 
 const normalizeTaskSet = function(tasks) {
   const tasksGroupsToExpand = [],
     tasksToRun = []
   tasks.forEach(t => {
-    if (!exportedTasks[t] && !exportedTasksGroups[t]) {
+    if (!pwp.exportedTasks[t] && !pwp.exportedTaskGroups[t]) {
       console.error(errorTxt(`Task or group of tasks "${t}" does not exist.`))
       process.exit(1)
     }
-    if (exportedTasksGroups[t]) {
+    if (pwp.exportedTaskGroups[t]) {
       tasksGroupsToExpand[t] = true
     } else {
       tasksToRun.push(t)
@@ -172,7 +146,7 @@ const normalizeTaskSet = function(tasks) {
   // iterate over ALL exported tasks to see if that task's group matches an item from the user's input
   // if so, add it (and other matches) to the list of tasks to run
   // by iterating over ALL exported tasks, only 1 loop and 1 comparison per task is needed
-  for (const [key, value] of Object.entries(exportedTasks)) {
+  for (const [key, value] of Object.entries(pwp.exportedTasks)) {
     if (tasksGroupsToExpand[value.group]) {
       tasksToRun.push(key)
     }
@@ -187,18 +161,28 @@ const normalizeTaskSet = function(tasks) {
 }
 
 yargs.command(
+  ['new-project'],
+  'Create a new pwp project with sample config in the current directory',
+  () => {},
+  argv => {
+    pwp.createProject()
+    console.log('Created ".pwp.json".')
+  }
+)
+
+yargs.command(
   ['list'],
   'Show list of tasks',
   () => {},
   argv => {
-    parseTaskFiles()
+    const pwp = require('pwp')
     let group
-    for (const [key, value] of Object.entries(exportedTasks)) {
+    for (const [key, value] of Object.entries(pwp.exportedTasks)) {
       if (group !== value.group) {
         ({group} = value)
         console.log('\n' + headerTxt(value.group))
       }
-      console.log(`    ${cmdTxt(key)}: ${value.description}`)
+      console.log(`    ${cmdTxt(key)}: ${value.description ? value.description : fadeTxt('no description provided')}`)
     }
   }
 )
@@ -215,7 +199,7 @@ const addProfilesOpt = function (yargs) {
 
 yargs.command(
   ['clear-cookies'],
-  'Remove cookies for the specified extension modes',
+  'Remove cookies for the specified profiles',
   addProfilesOpt,
   async argv => {
     if (!argv.profiles) {
@@ -224,35 +208,22 @@ yargs.command(
       console.error(errorTxt(`The "${argv._[0]}" command requires 1 or more profiles.`))
       process.exit(1)
     }
-    if (argv.profiles) {
+    for (let p in argv.profiles) {
       const rl = readline.createInterface({input: process.stdin, output: process.stdout})
       const it = rl[Symbol.asyncIterator]()
-      console.log(confirmMsg + '\n(y/n): ')
+      console.log(`Clear cookies for profile "${p}"\n(y/n): `)
       const answer = await it.next()
       rl.close()
       if (answer.value === 'y') {
-        try {
-          clearCookiesByProfile(p)
-          fs.unlinkSync(file)
-          console.log('Successfully removed ${file}')
-        } catch (error) {
-          if (error.code === 'ENOENT') { // do not exit with error for this case
-            console.log('Does not exist or already removed.')
-          } else {
-            console.error(errorTxt(`Failed to remove: ${file}\n${error}`))
-            process.exit(1)
-          }
-        }
+        pwp.clearCookiesByProfile(p)
       }
-
-//      await delFile(getProfileDirByMode('dev') + '/Default/Cookies', 'Delete cookies for ${}?')
     }
   }
 )
 
 yargs.command(
   ['run [tasks...]'],
-  'Run a list of tasks with the specified options.',
+  'Run a list of tasks with the specified options',
   yargs => {
     addProfilesOpt(yargs)
     yargs.option('screenshot',{
@@ -278,7 +249,7 @@ yargs.command(
   async argv => {
     argv.tasks = argv.tasks || []
     parseTaskFiles()
-    let tasks = normalizeTaskSet(argv.tasks)
+    let tasksToRun = normalizeTaskSet(argv.tasks)
 
     let profilesToRun = argv.profiles ? argv.profiles : []
     // if no profiles were passed via the cli, check the config for profiles to run by default
@@ -303,12 +274,8 @@ yargs.command(
       }
     })
 
-    profilesToRun.forEach(async p => {
-      for (let t of tasks) {
-        console.log(`Running ${cmdTxt(t)} ...`)
-        await exportedTasks[t].run(t, {config})
-      }
-    })
+    pwp.run(tasksToRun, profilesToRun, config)
+
   }
 )
 
