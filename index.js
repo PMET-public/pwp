@@ -19,10 +19,9 @@ if (!fs.existsSync(outputDir)) {
   fs.mkdirSync(outputDir)
 }
 
-const getProfileDirByMode = function (mode) {
-  return `${process.env.HOME}/.chromium-marketo-test-${mode}-mode`
+const clearCookies = function (profiles) {
+
 }
-exports.getProfileDirByMode = getProfileDirByMode
 
 const browserWithMLExt = async function(url, opts) {
   numBrowsers++
@@ -64,7 +63,7 @@ const browserWithMLExt = async function(url, opts) {
   return await puppeteer.launch(launchOpts)
 }
 
-const loggingTaskPage = async function(taskName, url, opts = {extMode: null}) {
+const pwp = async function(taskName, url, opts = {extMode: null}) {
   let logTaskArgs = [taskName, url, opts.extMode || opts.extMode === null ? opts : {...opts, extMode: 'dev'}], // account for case where opts were passed but extMode not set
     br = await browserWithMLExt(url, opts),
     targets = await br.targets(),
@@ -84,7 +83,7 @@ const loggingTaskPage = async function(taskName, url, opts = {extMode: null}) {
   }
   return page
 }
-exports.loggingTaskPage = loggingTaskPage
+exports.pwp = pwp
 
 const logTask = function (taskName, url, opts, eventName, msg) {
   const path = `${outputDir}/${dateStr}-${taskName}-${eventName}-${opts.extMode}.log` // this naming will put relevant files side by side

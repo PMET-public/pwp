@@ -1,5 +1,5 @@
 {
-  "name": "pwptr",
+  "name": "pwp",
   "version": "0.0.4",
   "description": "Puppeteer with profiles task runner",
   "main": "index.js",
@@ -8,7 +8,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/PMET-public/pwptr.git"
+    "url": "git+https://github.com/PMET-public/pwp.git"
   },
   "keywords": [
     "puppeteer",
@@ -18,9 +18,9 @@
   "author": "Keith Bentrup",
   "license": "ISC",
   "bugs": {
-    "url": "https://github.com/PMET-public/pwptr/issues"
+    "url": "https://github.com/PMET-public/pwp/issues"
   },
-  "homepage": "https://github.com/PMET-public/pwptr#readme",
+  "homepage": "https://github.com/PMET-public/pwp#readme",
   "dependencies": {
     "chalk": "^4.1.2",
     "puppeteer": "^11.0.0",
