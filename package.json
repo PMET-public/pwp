@@ -1,8 +1,11 @@
 {
   "name": "pwp",
-  "version": "0.0.5",
+  "version": "0.0.7",
   "description": "Puppeteer with profiles task runner",
-  "main": "index.js",
+  "main": "./lib/index.js",
+  "bin": {
+    "pwp": "./bin/pwp.js"
+  },
   "scripts": {
     "test": "my-test-command.js"
   },
