@@ -1,7 +1,6 @@
 {
   "_comment": "Relative or absolute paths accepted. Use \"~\" to substitue for your HOME dir and make tasks more shareable.",
-  "tasksDir": "./pwp-tasks",
-  "tasksOutputDir": "./pwp-tasks/output",
+  "tasksOutputDir": "./tasks/output",
   "profilesDir": "./.chrome-profiles",
   "profiles": {
     "no-extensions": {
