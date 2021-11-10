@@ -89,8 +89,49 @@
       "program": "${workspaceFolder}/bin/pwp.js",
       "args": [
         "run",
+        "250ok"
+      ]
+    },
+    {
+      // invalid cmd: all option + a task
+      "name": "pwp run 250ok 250ok-login",
+      "type": "pwa-node",
+      "request": "launch",
+      "skipFiles": [
+        "<node_internals>/**"
+      ],
+      "program": "${workspaceFolder}/bin/pwp.js",
+      "args": [
+        "run",
         "250ok",
         "250ok-login"
+      ]
+    },
+    {
+      "name": "pwp clear-cookies",
+      "type": "pwa-node",
+      "request": "launch",
+      "skipFiles": [
+        "<node_internals>/**"
+      ],
+      "program": "${workspaceFolder}/bin/pwp.js",
+      "args": [
+        "clear-cookies"
+      ]
+    },
+    {
+      "name": "pwp clear-cookies -p ublock",
+      "console": "integratedTerminal", // this conf requires interaction
+      "type": "pwa-node",
+      "request": "launch",
+      "skipFiles": [
+        "<node_internals>/**"
+      ],
+      "program": "${workspaceFolder}/bin/pwp.js",
+      "args": [
+        "clear-cookies",
+        "-p",
+        "ublock"
       ]
     }
   ]

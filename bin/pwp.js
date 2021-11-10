@@ -22,27 +22,25 @@ if (/node_modules/.test(__dirname)) {
   pwp = require('../lib/index') // when actively developing or debugging this module itself
 }
 
-const verifyOnlyOneOf = (argv, args) => {
-  if (args.filter(x => argv[x]).length !== 1) {
-    yargs.showHelp()
-    // invoked by command handler so must explicitly invoke console
-    throw {message: `The "${argv._[0]}" command requires additional args.`}
-  }
-}
-
 const addProfilesOpt = function (yargs) {
+  // remove the special blank profile
+  const profiles = Object.keys(pwp.getValidatedConfig().profiles).filter(x => x !== 'PWP_BLANK_PROFILE')
   yargs.option('p', {
     alias: 'profiles',
     description: 'list of profiles',
-    default: [],
-    choices: Object.keys(pwp.getValidatedConfig().profiles),
+    type: 'string',
+    choices: profiles,
     // yargs returns a single "choice" as a string but multiple choices as an array. make it consistent.
     coerce: x => typeof x === 'string' ? [x] : x
   })
+  yargs.option('all-profiles', {
+    description: 'Applies to all profiles in config file',
+    type: 'boolean',
+    conflicts: 'profiles'
+  })
 }
 
-yargs.command(
-  ['new-project'],
+yargs.command('new-project',
   'Create a new pwp project with sample config in the current directory',
   () => {},
   argv => {
@@ -56,8 +54,7 @@ yargs.command(
   }
 )
 
-yargs.command(
-  ['list'],
+yargs.command('list',
   'Show list of tasks',
   () => {},
   argv => {
@@ -78,8 +75,8 @@ yargs.command(
   }
 )
 
-yargs.command(
-  ['run [tasks...]'],
+// yargs positionals args using the [...] syntax will return all remaining args in an array or an empty array
+yargs.command('run [tasks...]',
   'Run a list of tasks with the specified options',
   yargs => {
     addProfilesOpt(yargs)
@@ -98,41 +95,46 @@ yargs.command(
       global: false,
       type: 'boolean'
     })
-    yargs.option('a', {
-      alias: 'all',
-      description: 'Run all tasks',
-      type: 'boolean',
-      conflicts: 'tasks'
-    })
     yargs.option('u', {
       alias: 'url',
       description: 'A url to substitute in tasks when the "{url}" is specified',
       type: 'string'
     })
     yargs.option('max', {
-      description: 'The maximum number of chrome browsers to run simultaneously',
+      description: 'The maximum number of chrome browsers to run at the same time',
       type: 'number',
       default: 2
+    })
+    yargs.option('all-tasks', {
+      description: 'Run all tasks',
+      type: 'boolean',
+      conflicts: 'tasks'
+    })
+    yargs.option('blank-profile', {
+      description: 'Use a blank profile (no prev history, cookies, exts, etc.)',
+      type: 'boolean'
     })
     yargs.positional('tasks', {
       type: 'string',
       describe: 'A list of tasks or named task groups',
-      coerce: x => {
-        if (typeof x === 'object' && x.length === 0) {
-          return undefined
-        }
-        return x || undefined
-      }
     })
+    yargs.example([
+      ['$0 -p dev google-login', 'Use the "dev" profile to run the "google-login" task'],
+      ['$0 --no-screenshot store-checkout', 'Run the "store-checkout" task with default profiles. Override any screenshot option.'],
+      ['$0 --all-tasks --all-profiles --max 2', 'Run all tasks with all profiles using 2 concurrent browsers max']
+    ])
   },
   async argv => {
     try {
-      verifyOnlyOneOf(argv, ['a', 'tasks'])
       if (!argv.tasks.length) {
         yargs.showHelp()
         throw {message: 'At least 1 task must be provided.'}
       }
-      pwp.runTasks(argv.tasks, argv.profiles, argv.max, {
+      const profilesToRun = argv.profiles || [] // if no profiles provided, pass an empty array
+      if (argv['blank-profile']) {
+        profilesToRun.push('PWP_BLANK_PROFILE')
+      }
+      pwp.runTasks(argv.tasks, profilesToRun, argv.max, argv.url, {
         screenshot: argv.screenshot,
         autoclose: argv.autoclose,
         devtools: argv.devtools
@@ -144,26 +146,30 @@ yargs.command(
   }
 )
 
-yargs.command(
-  ['clear-cookies'],
+yargs.command('clear-cookies',
   'Remove cookies for the specified profiles',
   addProfilesOpt,
   async argv => {
-    if (!argv.profiles) {
-      yargs.showHelp()
-      // invoked by command handler so must explicitly invoke console
-      console.error(errorTxt(`The "${argv._[0]}" command requires 1 or more profiles.`))
-      process.exit(1)
-    }
-    for (let p in argv.profiles) {
-      const rl = readline.createInterface({input: process.stdin, output: process.stdout})
-      const it = rl[Symbol.asyncIterator]()
-      console.log(`Clear cookies for profile "${p}"\n(y/n): `)
-      const answer = await it.next()
-      rl.close()
-      if (answer.value === 'y') {
-        pwp.clearCookiesByProfile(p)
+    try {
+      if (!argv.profiles) {
+        yargs.showHelp()
+        // invoked by command handler so must explicitly invoke console
+        throw {message: `The "${argv._[0]}" command requires 1 or more profiles.`}
       }
+      for (let i in argv.profiles) {
+        let p = argv.profiles[i]
+        const rl = readline.createInterface({input: process.stdin, output: process.stdout})
+        const it = rl[Symbol.asyncIterator]()
+        console.log(`Clear cookies for profile "${p}"\n(y/n): `)
+        const answer = await it.next()
+        rl.close()
+        if (answer.value === 'y') {
+          pwp.clearCookiesByProfile(p)
+        }
+      }
+    } catch (error) {
+      console.error(errorTxt(error.message))
+      process.exit(1)
     }
   }
 )
@@ -176,6 +182,7 @@ yargs
     'Commands:': headerTxt('Commands:'),
     'Options:': headerTxt('Options:     ** Commands may have additional options. See <cmd> -h. **'),
     'Positionals:': headerTxt('Positionals:'),
+    'Examples:': headerTxt('Examples:'),
     'Not enough non-option arguments: got %s, need at least %s': errorTxt(
       'Not enough non-option arguments: got %s, need at least %s'
     )

@@ -1,12 +1,16 @@
 {
-  "_comment": "Relative or absolute paths accepted. Use \"~\" to substitue for your HOME dir and make tasks more shareable.",
+  "_comment": [
+    "For paths, relative or absolute paths are accepted. Use \"~\" to substitue for your HOME dir.",
+    "This makes paths portable across users.",
+    "\"exts\" should be an array of paths to the dirs containing each extension's manifest.json."
+  ],
   "tasksDir": "./pwp-tasks",
   "tasksOutputDir": "./pwp-tasks/output",
-  "profilesDir": "./.pwp-chrome-profiles",
+  "profilesDir": "./pwp-tasks/.pwp-chrome-profiles",
   "profiles": {
     "no-extensions": {
       "exts": [],
-      "runByDefault": true,
+      "runByDefault": false,
       "devtools": false,
       "screenshot": false,
       "autoclose": true
@@ -14,9 +18,9 @@
     "ublock": {
       "_comment": "A profile running with popular extension uBlock Origin ver 1.38.6_49",
       "exts": [
-        "{HOME}/Library/Application Support/Google/Chrome/Default/Extensions/cjpalhdlnbpafiamejdnhcphjbkeiagm/1.38.6_49"
+        "~/Library/Application Support/Google/Chrome/Default/Extensions/cjpalhdlnbpafiamejdnhcphjbkeiagm/1.38.6_49"
       ],
-      "runByDefault": true,
+      "runByDefault": false,
       "devtools": false,
       "screenshot": false,
       "autoclose": true
