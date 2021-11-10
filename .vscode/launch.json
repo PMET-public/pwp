@@ -36,6 +36,62 @@
       "args": [
         "list"
       ]
+    },
+    // invalid cmd: no tasks specified
+    {
+      "name": "pwp run",
+      "type": "pwa-node",
+      "request": "launch",
+      "skipFiles": [
+        "<node_internals>/**"
+      ],
+      "program": "${workspaceFolder}/bin/pwp.js",
+      "args": [
+        "run"
+      ]
+    },
+    {
+      "name": "pwp run -a",
+      "type": "pwa-node",
+      "request": "launch",
+      "skipFiles": [
+        "<node_internals>/**"
+      ],
+      "program": "${workspaceFolder}/bin/pwp.js",
+      "args": [
+        "run",
+        "-a"
+      ]
+    },
+    {
+      // invalid cmd: all option + a task
+      "name": "pwp run -a sometask",
+      "type": "pwa-node",
+      "request": "launch",
+      "skipFiles": [
+        "<node_internals>/**"
+      ],
+      "program": "${workspaceFolder}/bin/pwp.js",
+      "args": [
+        "run",
+        "-a",
+        "sometask"
+      ]
+    },
+    {
+      // invalid cmd: all option + a task
+      "name": "pwp run 250ok",
+      "type": "pwa-node",
+      "request": "launch",
+      "skipFiles": [
+        "<node_internals>/**"
+      ],
+      "program": "${workspaceFolder}/bin/pwp.js",
+      "args": [
+        "run",
+        "250ok",
+        "250ok-login"
+      ]
     }
   ]
 }

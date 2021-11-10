@@ -10,12 +10,36 @@
 const yargs = require('yargs'),
   chalk = require('chalk'),
   readline = require('readline'),
-  pwp = require('../lib/index'), // when actively debugging
-  // pwp = require('pwp'), // when used as module
   errorTxt = txt => chalk.bold.white.bgRed(txt),
   warningTxt = headerTxt = txt => chalk.yellow(txt),
   successTxt = cmdTxt = txt => chalk.green(txt),
   fadeTxt = txt => chalk.grey(txt)
+
+let pwp
+if (/node_modules/.test(__dirname)) {
+  pwp = require('pwp') // when used as module in another project
+} else {
+  pwp = require('../lib/index') // when actively developing or debugging this module itself
+}
+
+const verifyOnlyOneOf = (argv, args) => {
+  if (args.filter(x => argv[x]).length !== 1) {
+    yargs.showHelp()
+    // invoked by command handler so must explicitly invoke console
+    throw {message: `The "${argv._[0]}" command requires additional args.`}
+  }
+}
+
+const addProfilesOpt = function (yargs) {
+  yargs.option('p', {
+    alias: 'profiles',
+    description: 'list of profiles',
+    default: [],
+    choices: Object.keys(pwp.getValidatedConfig().profiles),
+    // yargs returns a single "choice" as a string but multiple choices as an array. make it consistent.
+    coerce: x => typeof x === 'string' ? [x] : x
+  })
+}
 
 yargs.command(
   ['new-project'],
@@ -24,9 +48,9 @@ yargs.command(
   argv => {
     try {
       const result = pwp.createProject()
-      console.log(successTxt(result.msg))
+      console.log(successTxt(result.message))
     } catch (error) {
-      console.error(errorTxt(error.msg))
+      console.error(errorTxt(error.message))
       process.exit(1)
     }
   }
@@ -48,78 +72,75 @@ yargs.command(
         console.log(`    ${cmdTxt(key)}: ${value.description ? value.description : fadeTxt('no description provided')}`)
       }
     } catch (error) {
-      console.error(errorTxt(error.msg))
+      console.error(errorTxt(error.message))
       process.exit(1)
     }
-
   }
 )
-
-const addProfilesOpt = function (yargs) {
-  yargs.option('p', {
-    alias: 'profiles',
-    description: 'list of profiles',
-    choices: Object.keys(config.profiles),
-    // yargs returns a single "choice" as a string but multiple choices as an array. make it consistent.
-    coerce: x => typeof x === "string" ? [x] : x
-  })
-}
 
 yargs.command(
   ['run [tasks...]'],
   'Run a list of tasks with the specified options',
   yargs => {
     addProfilesOpt(yargs)
-    yargs.option('screenshot',{
+    yargs.option('screenshot', {
       description: 'Screenshot the page after each task is run. Use --no- prefix to negate.',
       global: false,
       type: 'boolean'
     })
-    yargs.option('devtools',{
+    yargs.option('devtools', {
       description: 'Run the task with devtools open. Often used with --no-autoclose option. Use --no- prefix to negate.',
       global: false,
       type: 'boolean',
     })
-    yargs.option('autoclose',{
+    yargs.option('autoclose', {
       description: 'Close the browser after each task. Use --no- prefix to negate.',
       global: false,
       type: 'boolean'
     })
+    yargs.option('a', {
+      alias: 'all',
+      description: 'Run all tasks',
+      type: 'boolean',
+      conflicts: 'tasks'
+    })
+    yargs.option('u', {
+      alias: 'url',
+      description: 'A url to substitute in tasks when the "{url}" is specified',
+      type: 'string'
+    })
+    yargs.option('max', {
+      description: 'The maximum number of chrome browsers to run simultaneously',
+      type: 'number',
+      default: 2
+    })
     yargs.positional('tasks', {
       type: 'string',
       describe: 'A list of tasks or named task groups',
+      coerce: x => {
+        if (typeof x === 'object' && x.length === 0) {
+          return undefined
+        }
+        return x || undefined
+      }
     })
   },
   async argv => {
-    argv.tasks = argv.tasks || []
-    parseTaskFiles()
-    let tasksToRun = normalizeTaskSet(argv.tasks)
-
-    let profilesToRun = argv.profiles ? argv.profiles : []
-    // if no profiles were passed via the cli, check the config for profiles to run by default
-    if (!profilesToRun.length) {
-      for (const [key, value] of Object.entries(config.profiles)) {
-        if (config.profiles[key].runByDefault) {
-          profilesToRun.push(key)
-        }
+    try {
+      verifyOnlyOneOf(argv, ['a', 'tasks'])
+      if (!argv.tasks.length) {
+        yargs.showHelp()
+        throw {message: 'At least 1 task must be provided.'}
       }
+      pwp.runTasks(argv.tasks, argv.profiles, argv.max, {
+        screenshot: argv.screenshot,
+        autoclose: argv.autoclose,
+        devtools: argv.devtools
+      })
+    } catch (error) {
+      console.error(errorTxt(error.message))
+      process.exit(1)
     }
-
-    // override .pwp.json config with cmd line options
-    profilesToRun.forEach(p => {
-      if (typeof argv.screenshot !== 'undefined') {
-        config.profiles[p].screenshot = argv.screenshot
-      }
-      if (typeof argv.autoclose !== 'undefined') {
-        config.profiles[p].autoclose = argv.autoclose
-      }
-      if (typeof argv.devtools !== 'undefined') {
-        config.profiles[p].devtools = argv.devtools
-      }
-    })
-
-    pwp.run(tasksToRun, profilesToRun, config)
-
   }
 )
 
