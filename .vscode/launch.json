@@ -5,13 +5,37 @@
   "version": "0.2.0",
   "configurations": [
     {
+      "name": "pwp",
       "type": "pwa-node",
       "request": "launch",
-      "name": "Launch Program",
       "skipFiles": [
         "<node_internals>/**"
       ],
-      "program": "${workspaceFolder}/pwp.js"
+      "program": "${workspaceFolder}/bin/pwp.js"
+    },
+    {
+      "name": "pwp new-project",
+      "type": "pwa-node",
+      "request": "launch",
+      "skipFiles": [
+        "<node_internals>/**"
+      ],
+      "program": "${workspaceFolder}/bin/pwp.js",
+      "args": [
+        "new-project"
+      ]
+    },
+    {
+      "name": "pwp list",
+      "type": "pwa-node",
+      "request": "launch",
+      "skipFiles": [
+        "<node_internals>/**"
+      ],
+      "program": "${workspaceFolder}/bin/pwp.js",
+      "args": [
+        "list"
+      ]
     }
   ]
 }
