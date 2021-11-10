@@ -5,7 +5,7 @@
     "\"exts\" should be an array of paths to the dirs containing each extension's manifest.json."
   ],
   "tasksOutputDir": "./tasks/output",
-  "profilesDir": "./.chrome-profiles",
+  "profilesDir": "./tasks/.chrome-profiles",
   "profiles": {
     "no-extensions": {
       "exts": [],

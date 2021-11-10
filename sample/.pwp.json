@@ -6,7 +6,7 @@
   ],
   "tasksDir": "./pwp-tasks",
   "tasksOutputDir": "./pwp-tasks/output",
-  "profilesDir": "./pwp-tasks/.pwp-chrome-profiles",
+  "profilesDir": "./pwp-tasks/.chrome-profiles",
   "profiles": {
     "no-extensions": {
       "exts": [],
